@@ -71,6 +71,16 @@ function cleanOldFiles() {
     });
 }
 
+// Healthcheck
+app.get("/health", (req, res) => {
+    res.json({
+        status: "opérationnel",
+        uptime: process.uptime(),
+        files: fs.readdirSync(uploadDir).length
+    });
+});
+
+
 // lancer toutes les heures
 setInterval(cleanOldFiles, 60 * 60 * 1000);
 // lancer aussi au démarrage
