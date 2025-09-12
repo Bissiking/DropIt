@@ -20,16 +20,19 @@ const upload = multer({
     limits: { fileSize: 20 * 1024 * 1024 * 1024 } // 20Go max
 });
 
+app.set("trust proxy", true);
 app.get("/", (req, res) => {
     res.sendFile(path.resolve("./public/index.html"));
 });
 
 // Upload (plusieurs fichiers)
 app.post("/upload", upload.array("file"), (req, res) => {
-    const baseUrl = process.env.BASE_URL || `http://localhost:${PORT}`;
+    // Détection automatique du protocole + host envoyé par le client
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
     const links = req.files.map(f => `${baseUrl}/download/${path.basename(f.filename)}`);
     res.json({ links });
 });
+
 
 // Download
 app.get("/download/:id", (req, res) => {
