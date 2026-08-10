@@ -52,6 +52,8 @@ async function main() {
   }));
 
   // --- API publique ---
+  // healthcheck sans authentification (infra / load-balancer)
+  app.get("/health", (req, res) => res.json({ status: "ok", uptime: process.uptime() }));
   app.get("/api/d/:slug", downloads.info);
   app.get("/dl/:slug/:fileId", downloads.file);
 

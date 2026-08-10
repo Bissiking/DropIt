@@ -346,7 +346,7 @@ async function enqueueUploads(files) {
         onProgress();
       },
     });
-    state.uploaded.set(uid, { file, progress: 100 });
+    state.uploaded.set(uid, { file: result, progress: 100 });
     updateRow(uid, 100, true, "ok");
     results.push(result);
     onProgress();
@@ -372,7 +372,7 @@ async function createShare() {
           id: u.file.id,
           name: u.file.name,
           size: u.file.size,
-          mime: u.file.type || "application/octet-stream",
+          mime: u.file.mime || "application/octet-stream",
           sha256: u.file.sha256,
           path: u.file.path,
         })),
