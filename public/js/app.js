@@ -423,15 +423,15 @@ function init() {
     state.duration = key.dataset.duration;
     $$("#durations .duration-key").forEach((k) => {
       const on = k === key;
-      k.toggleAttribute("aria-pressed", on);
-      k.querySelector?.(".duration-dot");
-      const dot = document.createElement("span");
-      dot.className = "duration-dot";
-      dot.setAttribute("aria-hidden", "true");
+      // setAttribute gère la valeur explicite : le CSS cible [aria-pressed="true"],
+      // alors que toggleAttribute pose aria-pressed="" (jamais capté par le sélecteur).
+      k.setAttribute("aria-pressed", on ? "true" : "false");
+      k.querySelector(".duration-dot")?.remove();
       if (on) {
-        if (!k.querySelector(".duration-dot")) k.appendChild(dot);
-      } else {
-        k.querySelector(".duration-dot")?.remove();
+        const dot = document.createElement("span");
+        dot.className = "duration-dot";
+        dot.setAttribute("aria-hidden", "true");
+        k.appendChild(dot);
       }
     });
   });
