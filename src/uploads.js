@@ -71,7 +71,7 @@ export function getChunkUpload() {
 export function uploadHandlers() {
   return {
     async init(req, res) {
-      const { uploadId, name, size, mime, expectedChunks, chunkSize } = req.body || {};
+      const { uploadId, name, size, mime, chunkSize } = req.body || {};
       if (!uploadId || typeof uploadId !== "string" || !/^[A-Za-z0-9-]{1,64}$/.test(uploadId)) {
         return res.status(400).json({ error: "uploadId invalide" });
       }
@@ -84,9 +84,9 @@ export function uploadHandlers() {
       const cs = Number.isFinite(chunkSize) && chunkSize > 0
         ? Math.min(chunkSize, config.limits.chunkSize)
         : config.limits.chunkSize;
-      const expected = Number.isInteger(expectedChunks)
-        ? expectedChunks
-        : Math.ceil(size / cs);
+      // expectedChunks est DERIVÉ de size : on n'utilise jamais le champ du client,
+      // sinon un client ancien (ou sans la valeur) stockerait 0 et rejetterait tout index.
+      const expected = Math.max(1, Math.ceil(size / cs));
       const now = Date.now();
       const existing = await readMeta(uploadId);
       const meta = {
@@ -111,11 +111,13 @@ export function uploadHandlers() {
       if (!meta) return res.status(404).json({ error: "upload inconnu" });
       const i = Number(index);
       if (!Number.isInteger(i) || i < 0 || i >= meta.expectedChunks) {
+        console.error("chunk refusé:", { uploadId, index: i, expectedChunks: meta.expectedChunks, size: meta.size, chunkSize: meta.chunkSize, name: meta.name });
         return res.status(400).json({ error: "index de chunk invalide" });
       }
       const buf = req.chunk;
       const expected = Math.min(meta.chunkSize, meta.size - i * meta.chunkSize);
       if (expected <= 0 || buf.length !== expected) {
+        console.error("taille chunk refusée:", { uploadId, index: i, reçu: buf.length, attendu: expected, chunkSize: meta.chunkSize, size: meta.size });
         return res.status(400).json({ error: `taille chunk ${i} inattendue (${buf.length} != ${expected})` });
       }
       const digest = crypto.createHash("sha256").update(buf).digest("hex");

@@ -22,6 +22,7 @@ export async function uploadFile(file, { onProgress = () => {} } = {}) {
       size: file.size,
       mime: file.type || "application/octet-stream",
       chunkSize: CHUNK_SIZE,
+      expectedChunks: Math.ceil(file.size / CHUNK_SIZE),
     }),
   });
   if (!init.ok) throw new Error(`init échec (${init.status})`);
