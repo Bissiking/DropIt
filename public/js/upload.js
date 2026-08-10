@@ -11,9 +11,8 @@ function makeUploadId() {
 
 export async function uploadFile(file, { onProgress = () => {} } = {}) {
   const uploadId = makeUploadId();
-  const expectedChunks = Math.ceil(file.size / CHUNK_SIZE);
 
-  // 1. init — renvoie les chunks déjà reçus (reprise après coupure)
+  // 1. init — le serveur impose sa propre taille de chunk ; on découpe selon sa réponse.
   const init = await fetch("/api/upload/init", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -23,13 +22,14 @@ export async function uploadFile(file, { onProgress = () => {} } = {}) {
       size: file.size,
       mime: file.type || "application/octet-stream",
       chunkSize: CHUNK_SIZE,
-      expectedChunks,
     }),
   });
   if (!init.ok) throw new Error(`init échec (${init.status})`);
-  const { receivedChunks } = await init.json();
+  const initData = await init.json();
 
-  const have = new Set(receivedChunks);
+  const chunkSize = initData.chunkSize || CHUNK_SIZE;
+  const expectedChunks = initData.expectedChunks ?? Math.ceil(file.size / chunkSize);
+  const have = new Set(initData.receivedChunks || []);
 
   // 2. envoi des chunks manquants, séquentiel par fichier
   for (let i = 0; i < expectedChunks; i++) {
@@ -37,8 +37,8 @@ export async function uploadFile(file, { onProgress = () => {} } = {}) {
       onProgress(Math.round(((i + 1) / expectedChunks) * 100));
       continue;
     }
-    const start = i * CHUNK_SIZE;
-    const end = Math.min(start + CHUNK_SIZE, file.size);
+    const start = i * chunkSize;
+    const end = Math.min(start + chunkSize, file.size);
     const slice = file.slice(start, end);
 
     const buf = await new Promise((resolve, reject) => {
@@ -48,7 +48,8 @@ export async function uploadFile(file, { onProgress = () => {} } = {}) {
       reader.readAsArrayBuffer(slice);
     });
 
-    // retry local : 2 tentatives avec backoff
+    // retry local : 2 tentatives avec backoff (pannes réseau uniquement).
+    // Une réponse HTTP non-2xx est définitive : on remonte le message serveur.
     let ok = false;
     for (let attempt = 0; attempt < 2 && !ok; attempt++) {
       try {
@@ -58,9 +59,13 @@ export async function uploadFile(file, { onProgress = () => {} } = {}) {
           body: buf,
         });
         if (res.ok) ok = true;
-        else if (res.status === 404) throw new Error("upload expiré");
+        else {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || `chunk ${i} refusé (${res.status})`);
+        }
       } catch (err) {
-        if (attempt === 1) throw err;
+        const http = err && typeof err.message === "string" && /refusé|expiré/.test(err.message);
+        if (http || attempt === 1) throw err;
         await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
       }
     }
