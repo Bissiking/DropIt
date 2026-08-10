@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DropIt — Connexion</title>
+  <meta name="description" content="Accès réservé aux collaborateurs. Connexion via SSO Kyros.">
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='4' y='2' width='24' height='28' rx='3' fill='%23121216' stroke='%232c2c35'/%3E%3Crect x='8' y='8' width='16' height='16' rx='2' fill='%23ff6a1f' opacity='0.9'/%3E%3C/svg%3E">
+</head>
+<body data-connecting="false">
+  <!--
+  DROPIT world contract (seed 9a751a58 → challenger signals-instruments-nixie-laboratory-counter)
+  THESIS: a file-transfer labouratory counted in neon glass — DROPIT lights tube by tube, the clock is a live bank, one deliberate lever starts SSO; it refuses the silent auto-redirect into Kyros.
+  OWN-WORLD: blackened steel chassis, hairline metal rules, engraved caps, one neon-orange accent; IBM Plex Mono digits glow inside glass envelopes with ghost numerals behind.
+  STORY: the operator arrives, reads the brand lighting up, sees the laboratory clock, and opens the SSO briefly-supported bridge from one explicit action.
+  FIRST VIEWPORT: centred steel plate, DROPIT letter-tube cascade, live nixie clock, single "Connexion SSO" lever.
+  FORM: laboratory-nixie instrument, challenger 4, seed key 9a751a58.
+  FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md.
+  -->
+  <main class="login-shell">
+    <div class="login-plate">
+      <div class="login-brand">
+        <div class="login-brand-name">
+          <span class="brand-tube" role="img" aria-label="DropIt"></span>
+          <span class="cap">Accès sécurisé</span>
+        </div>
+        <div class="bank-row login-brand-bank" id="brandBank" role="img" aria-label="DropIt"></div>
+      </div>
+
+      <div class="login-clock">
+        <div class="cap">Heure du laboratoire</div>
+        <div class="bank-row login-clock-bank" id="clockBank" role="img" aria-label="Heure"></div>
+      </div>
+
+      <p class="login-note">
+        La connexion passe par Kyros, le portail d'authentification de l'organisation.
+        Votre mot de passe n'est jamais transmis à DropIt.
+      </p>
+
+      <button class="btn btn-primary login-cta" id="ssoBtn" type="button">
+        <span class="btn-icon" aria-hidden="true">↗</span>
+        Continuer vers Kyros
+      </button>
+    </div>
+
+    <footer class="login-footer">
+      <span class="cap">DropIt — transfert de fichiers sécurisé</span>
+    </footer>
+  </main>
+
+  <script type="module" src="/js/login.js"></script>
+</body>
+</html>
