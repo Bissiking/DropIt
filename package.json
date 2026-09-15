@@ -1,18 +1,26 @@
 {
   "name": "dropit",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "",
+  "engines": {
+    "node": ">=22.13"
+  },
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "seed": "node scripts/seed.mjs http://localhost:3457",
+    "test": "node --test test/*.test.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^17.4.2",
     "express": "^5.1.0",
-    "multer": "^2.0.2"
+    "jose": "^6.2.12",
+    "jsonwebtoken": "^9.0.3"
   }
 }

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="icon" href="data:," />
+    <title>Applications connectées · DropIt</title>
+    <link rel="stylesheet" href="/css/integrations.css" />
+    <script src="/js/integrations.js" defer></script>
+  </head>
+  <body>
+    <main>
+      <a href="/">Retour à DropIt</a>
+      <h1>Applications connectées</h1>
+      <p>
+        Autorisez une application à consulter vos partages. Vos accès personnels
+        restent révocables.
+      </p>
+      <p id="status" role="status"></p>
+      <h2>Mes autorisations</h2>
+      <div id="grants"></div>
+      <h2>Mes applications</h2>
+      <p>
+        Pour connecter Liora, copiez l’URL de retour affichée dans son
+        administration. La clé ne sera montrée qu’une fois.
+      </p>
+      <form id="create">
+        <label
+          >Nom de l’application<input
+            name="name"
+            required
+            maxlength="80"
+            placeholder="Liora" /></label
+        ><label
+          >URL de retour<input
+            name="redirect_uri"
+            type="url"
+            required
+            placeholder="https://liora.example.com/api/v1/integration-callback" /></label
+        ><button>Créer une clé d’application</button>
+      </form>
+      <section id="secret" hidden>
+        <h2>Clé créée</h2>
+        <p>Enregistrez ces deux valeurs dans Liora.</p>
+        <label>Identifiant du client<input id="client-id" readonly /></label
+        ><label>Clé API<input id="api-key" readonly /></label>
+      </section>
+      <div id="clients"></div>
+    </main>
+  </body>
+</html>

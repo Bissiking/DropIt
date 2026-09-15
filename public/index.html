@@ -1,483 +1,114 @@
 <!DOCTYPE html>
 <html lang="fr">
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FileShare - Envoi de fichiers</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-    }
-
-    .container {
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(10px);
-      border-radius: 24px;
-      padding: 40px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-      max-width: 600px;
-      width: 100%;
-      text-align: center;
-      transition: transform 0.3s ease;
-    }
-
-    .container:hover {
-      transform: translateY(-5px);
-    }
-
-    h1 {
-      color: #333;
-      font-size: 2.5rem;
-      margin-bottom: 10px;
-      font-weight: 700;
-    }
-
-    .subtitle {
-      color: #666;
-      font-size: 1.1rem;
-      margin-bottom: 40px;
-    }
-
-    .upload-zone {
-      border: 3px dashed #ddd;
-      border-radius: 16px;
-      padding: 60px 20px;
-      margin-bottom: 30px;
-      background: #fafafa;
-      transition: all 0.3s ease;
-      cursor: pointer;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .upload-zone:hover {
-      border-color: #667eea;
-      background: #f0f4ff;
-      transform: scale(1.02);
-    }
-
-    .upload-zone.dragover {
-      border-color: #667eea;
-      background: linear-gradient(45deg, #f0f4ff, #e8f2ff);
-      border-style: solid;
-    }
-
-    .upload-icon {
-      width: 80px;
-      height: 80px;
-      margin: 0 auto 20px;
-      background: linear-gradient(135deg, #667eea, #764ba2);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: transform 0.3s ease;
-    }
-
-    .upload-zone:hover .upload-icon {
-      transform: scale(1.1) rotate(5deg);
-    }
-
-    .upload-text {
-      font-size: 1.2rem;
-      color: #333;
-      margin-bottom: 10px;
-      font-weight: 600;
-    }
-
-    .upload-subtext {
-      color: #888;
-      font-size: 0.95rem;
-    }
-
-    .file-input {
-      display: none;
-    }
-
-    .files-list {
-      margin: 30px 0;
-      text-align: left;
-    }
-
-    .file-item {
-      background: white;
-      border-radius: 12px;
-      padding: 15px 20px;
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-      transition: all 0.3s ease;
-      animation: slideIn 0.5s ease;
-    }
-
-    .file-item:hover {
-      transform: translateX(5px);
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
-    }
-
-    .file-info {
-      display: flex;
-      align-items: center;
-    }
-
-    .file-icon {
-      width: 40px;
-      height: 40px;
-      background: linear-gradient(135deg, #667eea, #764ba2);
-      border-radius: 8px;
-      margin-right: 15px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-weight: bold;
-    }
-
-    .file-details h4 {
-      color: #333;
-      font-size: 1rem;
-      margin-bottom: 2px;
-    }
-
-    .file-size {
-      color: #666;
-      font-size: 0.85rem;
-    }
-
-    .remove-btn {
-      background: #ff4757;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      padding: 8px 12px;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      font-size: 0.85rem;
-    }
-
-    .remove-btn:hover {
-      background: #ff3742;
-      transform: scale(1.05);
-    }
-
-    .form-section {
-      margin: 30px 0;
-      text-align: left;
-    }
-
-    .input-group {
-      margin-bottom: 20px;
-    }
-
-    .input-group label {
-      display: block;
-      color: #333;
-      font-weight: 600;
-      margin-bottom: 8px;
-    }
-
-    .input-group input,
-    .input-group textarea {
-      width: 100%;
-      padding: 12px 16px;
-      border: 2px solid #eee;
-      border-radius: 12px;
-      font-size: 1rem;
-      transition: all 0.3s ease;
-      background: white;
-    }
-
-    .input-group input:focus,
-    .input-group textarea:focus {
-      outline: none;
-      border-color: #667eea;
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    }
-
-    .send-btn {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      border: none;
-      border-radius: 16px;
-      padding: 16px 40px;
-      font-size: 1.1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      width: 100%;
-      margin-top: 20px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .send-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
-    }
-
-    .send-btn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      transform: none;
-    }
-
-    .progress-bar {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      height: 4px;
-      background: rgba(255, 255, 255, 0.8);
-      width: 0%;
-      transition: width 0.3s ease;
-      border-radius: 0 0 16px 16px;
-    }
-
-    @keyframes slideIn {
-      from {
-        opacity: 0;
-        transform: translateY(20px);
-      }
-
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    @keyframes pulse {
-
-      0%,
-      100% {
-        transform: scale(1);
-      }
-
-      50% {
-        transform: scale(1.05);
-      }
-    }
-
-    .uploading {
-      animation: pulse 2s infinite;
-    }
-
-    @media (max-width: 768px) {
-      .container {
-        padding: 30px 20px;
-        margin: 10px;
-      }
-
-      h1 {
-        font-size: 2rem;
-      }
-
-      .upload-zone {
-        padding: 40px 15px;
-      }
-    }
-  </style>
+  <title>DropIt — Fichiers en transit</title>
+  <meta name="description" content="Envoi de gros fichiers jusqu'à 40 Go, relié au SSO. Liens courts, durée de vie, récupérables 24 h après suppression.">
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='4' y='2' width='24' height='28' rx='3' fill='%23121216' stroke='%232c2c35'/%3E%3Crect x='8' y='8' width='16' height='16' rx='2' fill='%23ff6a1f' opacity='0.9'/%3E%3C/svg%3E">
 </head>
-
 <body>
-  <div class="container">
-    <h1>FileShare</h1>
-    <p class="subtitle">Partagez vos fichiers en toute simplicité</p>
-
-    <div class="upload-zone" id="uploadZone">
-      <div class="upload-icon">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="white">
-          <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
-        </svg>
+  <!--
+  DROPIT world contract (seed 9a751a58 → challenger signals-instruments-nixie-laboratory-counter)
+  THESIS: a file-transfer labouratory counted in neon glass — every quantity a tube bank, every status a lamp state; it refuses the "progress bar into a folder" file-sharing default.
+  OWN-WORLD: blackened steel chassis, hairline metal rules, engraved caps, one neon-orange accent that is the only warm thing; IBM Plex Mono digits glow inside glass envelopes with ghost numerals behind.
+  STORY: the operator sees each deposit's time-to-live as a physical counter, reads its state from the lamp, and acts (copy / regenerate / delete / restore) without a modal.
+  FIRST VIEWPORT: chassis bar with lit DROP·IT tube; brand navigation; "Partages" list of husbanded slots, the lead metric a live expiration bank, recovery state shown as an offened tube with restore lever.
+  FORM: laboratory-nixie instrument, challenger 4, seed key 9a751a58.
+  FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md.
+  -->
+  <div class="app-shell">
+    <header class="chassis-bar">
+      <div class="brand">
+        <span>DROP</span><span class="brand-tube" role="img" aria-label="i"></span><span>IT</span>
       </div>
-      <div class="upload-text">Glissez vos fichiers ici</div>
-      <div class="upload-subtext">ou cliquez pour parcourir (max 20GB par fichier)</div>
-    </div>
 
-    <input type="file" id="fileInput" class="file-input" multiple>
+      <nav class="chassis-nav" id="nav" aria-label="Navigation principale">
+        <button data-view="dashboard" aria-current="true">Partages</button>
+        <button data-view="upload">Nouvel envoi</button>
+      </nav>
 
-    <div class="files-list" id="filesList"></div>
+      <div class="chassis-user">
+        <span class="avatar" id="userAvatar" aria-hidden="true"></span>
+        <span id="userName"></span>
+        <a class="logout" href="/integrations">Applications</a>
+        <a class="logout" href="/auth/logout">Quitter</a>
+      </div>
+    </header>
 
-    <button class="send-btn" id="sendBtn" disabled>
-      <span id="btnText">Envoyer les fichiers</span>
-      <div class="progress-bar" id="progressBar"></div>
-    </button>
+    <main class="container">
+      <!-- DASHBOARD -->
+      <section id="view-dashboard" class="view" hidden>
+        <div class="page-head">
+          <div>
+            <h1>Partages</h1>
+            <div class="sub">État de chaque dépôt, temps restant, récupération après suppression.</div>
+          </div>
+        </div>
+        <div id="shareList" aria-live="polite"></div>
+      </section>
+
+      <!-- UPLOAD -->
+      <section id="view-upload" class="view" hidden>
+        <div class="page-head">
+          <div>
+            <h1>Nouvel envoi</h1>
+            <div class="sub">Les fichiers partent en chunks : l'envoi reprend après une coupure.</div>
+          </div>
+        </div>
+
+        <div id="uploadFlow">
+          <div class="drop-vault" id="dropZone" tabindex="0" role="button" aria-label="Sélectionner des fichiers à envoyer">
+            <div class="vault-tube tube" id="vaultTube"
+                 style="--tube-h:64px"><span class="tube-window"></span><span class="tube-ghost" aria-hidden="true"></span><span class="tube-lit">0</span></div>
+            <h2>Déposez vos fichiers ici</h2>
+            <p>Jusqu'à 40 Go par fichier. Plusieurs fichiers d'un coup.</p>
+            <div class="drop-cta">
+              <button class="btn btn-primary" id="pickBtn" type="button">Choisir des fichiers</button>
+            </div>
+            <input type="file" id="fileInput" multiple aria-label="Fichiers à envoyer">
+          </div>
+
+          <div id="queueWrap" hidden>
+            <div class="waiting" id="queue" aria-live="polite"></div>
+
+            <div class="form-panel">
+              <div class="form-label">Durée de partage</div>
+              <div class="duration-set" id="durations" role="group" aria-label="Durée du partage">
+                <button class="duration-key" data-duration="1h">1 h</button>
+                <button class="duration-key" aria-pressed="true" data-duration="24h">24 h<span class="duration-dot" aria-hidden="true"></span></button>
+                <button class="duration-key" data-duration="7d">7 j</button>
+                <button class="duration-key" data-duration="30d">30 j</button>
+              </div>
+
+              <div class="form-actions">
+                <span class="cap" id="queueSummary"></span>
+                <button class="btn btn-primary" id="sendBtn" type="button" disabled>
+                  <span class="btn-icon" aria-hidden="true">▲</span> Déposer le partage
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="created-card" id="createdCard" hidden>
+            <div class="cap" style="color:var(--accent-bright)">Partage déposé</div>
+            <div class="created-url" id="createdUrl"></div>
+            <div class="created-actions">
+              <button class="btn btn-primary" id="copyCreated" type="button">Copier le lien</button>
+              <button class="btn" id="resetCreated" type="button">Nouvel envoi</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" role="status"></div>
   </div>
 
-  <script>
-    let selectedFiles = [];
-
-    // Éléments DOM
-    const uploadZone = document.getElementById('uploadZone');
-    const fileInput = document.getElementById('fileInput');
-    const filesList = document.getElementById('filesList');
-    const sendBtn = document.getElementById('sendBtn');
-    const btnText = document.getElementById('btnText');
-    const progressBar = document.getElementById('progressBar');
-
-    // Gestion du drag & drop
-    uploadZone.addEventListener('click', () => fileInput.click());
-
-    uploadZone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      uploadZone.classList.add('dragover');
-    });
-
-    uploadZone.addEventListener('dragleave', () => {
-      uploadZone.classList.remove('dragover');
-    });
-
-    uploadZone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      uploadZone.classList.remove('dragover');
-      handleFiles(e.dataTransfer.files);
-    });
-
-    fileInput.addEventListener('change', (e) => {
-      handleFiles(e.target.files);
-    });
-
-    function handleFiles(files) {
-      Array.from(files).forEach(file => {
-        // ⚠️ limite côté frontend (optionnelle, ton backend accepte + gros)
-        if (file.size > 20 * 1024 * 1024 * 1024) {
-          alert(`Le fichier "${file.name}" est trop volumineux (max 20GB)`);
-          return;
-        }
-        selectedFiles.push(file);
-      });
-      updateFilesList();
-      updateSendButton();
-    }
-
-    function updateFilesList() {
-      filesList.innerHTML = '';
-      selectedFiles.forEach((file, index) => {
-        const fileItem = document.createElement('div');
-        fileItem.className = 'file-item';
-        fileItem.innerHTML = `
-      <div class="file-info">
-        <div class="file-icon">${getFileIcon(file.name)}</div>
-        <div class="file-details">
-          <h4>${file.name}</h4>
-          <div class="file-size">${formatFileSize(file.size)}</div>
-        </div>
-      </div>
-      <button class="remove-btn" onclick="removeFile(${index})">×</button>
-    `;
-        filesList.appendChild(fileItem);
-      });
-    }
-
-    function removeFile(index) {
-      selectedFiles.splice(index, 1);
-      updateFilesList();
-      updateSendButton();
-    }
-
-    function getFileIcon(filename) {
-      const ext = filename.split('.').pop().toLowerCase();
-      const icons = {
-        'pdf': '📄',
-        'doc': '📝',
-        'docx': '📝',
-        'txt': '📝',
-        'jpg': '🖼️',
-        'jpeg': '🖼️',
-        'png': '🖼️',
-        'gif': '🖼️',
-        'mp4': '🎥',
-        'avi': '🎥',
-        'mov': '🎥',
-        'mp3': '🎵',
-        'wav': '🎵',
-        'aac': '🎵',
-        'zip': '📦',
-        'rar': '📦',
-        '7z': '📦'
-      };
-      return icons[ext] || '📁';
-    }
-
-    function formatFileSize(bytes) {
-      if (bytes === 0) return '0 Bytes';
-      const k = 1024;
-      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-      const i = Math.floor(Math.log(bytes) / Math.log(k));
-      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    }
-
-    function updateSendButton() {
-      sendBtn.disabled = (selectedFiles.length === 0);
-    }
-
-    // Envoi fichiers
-    sendBtn.addEventListener('click', async () => {
-      if (selectedFiles.length === 0) return;
-
-      btnText.textContent = 'Envoi en cours...';
-      sendBtn.disabled = true;
-      sendBtn.classList.add('uploading');
-
-      const formData = new FormData();
-      selectedFiles.forEach(file => formData.append("file", file));
-
-      try {
-        const xhr = new XMLHttpRequest();
-        xhr.open("POST", "/upload", true);
-
-        // Progression upload
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) {
-            const percent = (e.loaded / e.total) * 100;
-            progressBar.style.width = percent + "%";
-          }
-        };
-
-        xhr.onload = () => {
-          if (xhr.status === 200) {
-            const data = JSON.parse(xhr.responseText);
-            btnText.textContent = 'Fichiers envoyés ! ✅';
-
-            // afficher tous les liens renvoyés
-            filesList.innerHTML = data.links.map(
-              link => `<p><a href="${link}" target="_blank">${link}</a></p>`
-            ).join("");
-
-            selectedFiles = []; // reset la sélection
-            updateSendButton();
-
-          } else {
-            alert("Erreur lors de l'envoi.");
-          }
-          sendBtn.classList.remove('uploading');
-          sendBtn.disabled = false;
-          progressBar.style.width = "0%";
-        };
-
-        xhr.send(formData);
-
-      } catch (err) {
-        console.error(err);
-        alert("Erreur : impossible d’envoyer.");
-        btnText.textContent = 'Envoyer les fichiers';
-        sendBtn.disabled = false;
-      }
-    });
-  </script>
+  <script type="module" src="/js/app.js"></script>
 </body>
-
 </html>
