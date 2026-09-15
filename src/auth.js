@@ -1,221 +1,242 @@
+// src/auth.js — durable Kyros v4 sessions, shared by the application and integration consent.
 import crypto from "node:crypto";
-import jwt from "jsonwebtoken";
+import { DatabaseSync } from "node:sqlite";
+import fs from "node:fs";
+import path from "node:path";
 import { config } from "./config.js";
-
-const SESSION_TTL = 12 * 60 * 60 * 1000;
-
-const sessions = new Map();
-
-export function debugSso() {
-  const k = config.kyros;
-  return {
-    provider: k.provider,
-    hasBaseUrl: Boolean(k.baseUrl),
-    hasClientId: Boolean(k.clientId),
-    hasClientSecret: Boolean(k.clientSecret),
-    hasJwtSecret: Boolean(k.jwtSecret),
-  };
-}
-
-function newState() {
-  return crypto.randomBytes(24).toString("hex");
-}
-
-function authorizeUrl(state) {
-  const k = config.kyros;
-  const redirectUri = `${config.publicBaseUrl}/auth/callback`;
-  const url = new URL(
-    k.authorizeUrl || new URL("/authorize", k.baseUrl).toString()
-  );
-  url.search = new URLSearchParams({
-    client_id: k.clientId,
-    redirect_uri: redirectUri,
-    scope: k.scope,
-    state,
-  }).toString();
-  return url;
-}
-
-export async function exchangeCode(code) {
-  const k = config.kyros;
-  const redirectUri = `${config.publicBaseUrl}/auth/callback`;
-  const res = await fetch(
-    k.tokenUrl || new URL("/token", k.baseUrl).toString(),
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        grant_type: "authorization_code",
-        client_id: k.clientId,
-        client_secret: k.clientSecret,
-        code,
-        redirect_uri: redirectUri,
-      }),
-    }
-  );
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`token exchange failed (${res.status}): ${body.slice(0, 200)}`);
-  }
-  return res.json();
-}
-
-export async function revokeRefreshToken(refreshToken) {
-  try {
-    const k = config.kyros;
-    await fetch(new URL("/revoke", k.baseUrl).toString(), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token: refreshToken }),
-    });
-  } catch {
-    // meilleur effort
-  }
-}
-
-function verifyJwt(token) {
-  const k = config.kyros;
-  return new Promise((resolve) => {
-    jwt.verify(token, k.jwtSecret, {
-      algorithms: ["HS256"],
-      issuer: k.issuer,
-      audience: k.audience,
-    }, (err, decoded) => {
-      if (err) return resolve(null);
-      if (k.resourceAudience && decoded.resource_aud !== k.resourceAudience) {
-        return resolve(null);
-      }
-      resolve(decoded);
-    });
+import {
+  createPkce,
+  createAuthorizationRequest,
+  exchangeAuthorizationCode,
+  verifyKyrosToken,
+  refreshKyrosTokens,
+  revokeKyrosToken,
+  KyrosTokenError,
+  getKyrosConfig,
+} from "./kyros-v4.js";
+fs.mkdirSync(config.dirs.data, { recursive: true, mode: 0o700 });
+const keyPath = path.join(config.dirs.data, "auth-master.key");
+if (!fs.existsSync(keyPath))
+  fs.writeFileSync(keyPath, crypto.randomBytes(32), {
+    flag: "wx",
+    mode: 0o600,
   });
+const key = fs.readFileSync(keyPath);
+if (key.length !== 32) throw Error("Clé de sessions DropIt invalide");
+const dbFile = path.join(config.dirs.data, "auth.sqlite");
+const db = new DatabaseSync(dbFile);
+fs.chmodSync(dbFile, 0o600);
+db.exec(
+  "CREATE TABLE IF NOT EXISTS sessions(id TEXT PRIMARY KEY,subject TEXT NOT NULL,user TEXT NOT NULL,tokens TEXT NOT NULL,access_expires INTEGER NOT NULL,expires INTEGER NOT NULL); CREATE TABLE IF NOT EXISTS attempts(id TEXT PRIMARY KEY,verifier TEXT NOT NULL,expires INTEGER NOT NULL);",
+);
+const hash = (s) => crypto.createHash("sha256").update(s).digest("hex");
+function seal(value) {
+  const iv = crypto.randomBytes(12),
+    cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
+  const bytes = Buffer.concat([
+    cipher.update(JSON.stringify(value)),
+    cipher.final(),
+  ]);
+  return Buffer.concat([iv, cipher.getAuthTag(), bytes]).toString("base64url");
 }
-
-function profileFromTokenData(data, decoded) {
-  const u = data.user || {};
-  return {
-    sub: decoded?.sub || u.id || null,
-    id: u.id || decoded?.sub || null,
-    name: decoded?.name || u.display_name || u.name || null,
-    email: decoded?.email || u.email || null,
-    avatar: u.avatar || null,
-  };
+function unseal(value) {
+  const raw = Buffer.from(value, "base64url"),
+    cipher = crypto.createDecipheriv("aes-256-gcm", key, raw.subarray(0, 12));
+  cipher.setAuthTag(raw.subarray(12, 28));
+  return JSON.parse(
+    Buffer.concat([cipher.update(raw.subarray(28)), cipher.final()]).toString(),
+  );
 }
-
-export function createSession(user, { accessToken, refreshToken }) {
-  const sid = crypto.randomBytes(24).toString("hex");
-  const session = {
-    sid,
-    user,
-    accessToken,
-    refreshToken,
-    createdAt: Date.now(),
-    expiresAt: Date.now() + SESSION_TTL,
-  };
-  sessions.set(sid, session);
+const options = () => ({
+  httpOnly: true,
+  sameSite: "lax",
+  secure: config.publicBaseUrl.startsWith("https:"),
+  path: "/",
+});
+export const cookieName = () => "dropit.sid";
+export const debugSso = () => ({
+  provider: "kyros",
+  version: "v4",
+  hasBaseUrl: Boolean(config.kyros.baseUrl),
+  hasClientId: Boolean(config.kyros.clientId),
+});
+export function getSession(sid) {
+  if (typeof sid !== "string" || sid.length > 100) return null;
+  const row = db
+    .prepare("SELECT * FROM sessions WHERE id=? AND expires>?")
+    .get(hash(sid), Date.now());
+  if (!row) return null;
+  return { sid, user: JSON.parse(row.user), expiresAt: row.expires, row };
+}
+export function createSession(user, { tokens, claims }) {
+  const sid = crypto.randomBytes(32).toString("base64url");
+  db.prepare("INSERT INTO sessions VALUES(?,?,?,?,?,?)").run(
+    hash(sid),
+    user.sub,
+    JSON.stringify(user),
+    seal(tokens),
+    Number(claims.exp) * 1000,
+    new Date(tokens.refresh_token_expires_at).getTime(),
+  );
   return sid;
 }
-
-export function getSession(sid) {
-  const s = sid && sessions.get(sid);
-  if (!s) return null;
-  if (Date.now() > s.expiresAt) {
-    sessions.delete(sid);
-    return null;
+const refreshing = new Map();
+async function refresh(sid) {
+  const fingerprint = hash(sid);
+  if (refreshing.has(fingerprint)) return refreshing.get(fingerprint);
+  const work = (async () => {
+    const session = getSession(sid);
+    if (!session) return null;
+    if (session.row.access_expires > Date.now() + 120000) return session;
+    try {
+      const old = unseal(session.row.tokens),
+        tokens = await refreshKyrosTokens(old.refresh_token),
+        claims = await verifyKyrosToken(tokens.access_token);
+      if (claims.sub !== session.user.sub)
+        throw new KyrosTokenError("Compte différent", "invalid_grant", false);
+      db.prepare(
+        "UPDATE sessions SET tokens=?,access_expires=?,expires=? WHERE id=?",
+      ).run(
+        seal(tokens),
+        Number(claims.exp) * 1000,
+        new Date(tokens.refresh_token_expires_at).getTime(),
+        fingerprint,
+      );
+      return getSession(sid);
+    } catch (e) {
+      if (e instanceof KyrosTokenError && !e.retryable) {
+        db.prepare("DELETE FROM sessions WHERE id=?").run(fingerprint);
+        return null;
+      }
+      if (session.row.access_expires > Date.now()) return session;
+      throw Object.assign(
+        Error("Kyros temporairement inaccessible. Réessayez."),
+        { status: 503 },
+      );
+    }
+  })();
+  refreshing.set(fingerprint, work);
+  try {
+    return await work;
+  } finally {
+    refreshing.delete(fingerprint);
   }
-  return s;
 }
-
 export async function destroySession(sid) {
-  const s = sessions.get(sid);
-  if (s?.refreshToken) await revokeRefreshToken(s.refreshToken);
-  sessions.delete(sid);
+  const session = getSession(sid);
+  if (session) {
+    db.prepare("DELETE FROM sessions WHERE id=?").run(hash(sid));
+    try {
+      await revokeKyrosToken(unseal(session.row.tokens).refresh_token);
+    } catch {}
+  }
 }
-
-export function cookieName() {
-  return "dropit.sid";
-}
-
 export function makeAuthHandlers() {
   return {
-    startLogin(req, res) {
-      const state = newState();
-      res.cookie("dropit.state", state, {
-        httpOnly: true,
-        sameSite: "lax",
-        maxAge: 10 * 60 * 1000,
-      });
-      res.redirect(authorizeUrl(state));
-    },
-
-    async callback(req, res) {
+    async startLogin(req, res) {
       try {
-        const { code, state } = req.query;
-        const savedState = req.cookies["dropit.state"];
-        if (
-          !state || !savedState || !crypto.timingSafeEqual(
-            Buffer.from(String(savedState)), Buffer.from(String(state))
-          )
-        ) {
-          return res.status(400).send("Paramètre state invalide.");
-        }
-        res.clearCookie("dropit.state");
-        if (!code) return res.status(400).send("Code manquant.");
-
-        const data = await exchangeCode(code);
-        const decoded = await verifyJwt(data.access_token);
-        if (!decoded) {
-          return res.status(401).send("Jeton invalide pour ce module.");
-        }
-        const user = profileFromTokenData(data, decoded);
-        const sid = createSession(user, {
-          accessToken: data.access_token,
-          refreshToken: data.refresh_token,
-        });
-        res.cookie(cookieName(), sid, {
-          httpOnly: true,
-          sameSite: "lax",
-          maxAge: SESSION_TTL,
-        });
-        res.redirect("/");
-      } catch (err) {
-        console.error("SSO callback error:", err.message);
-        res.status(500).send("La connexion SSO a échoué.");
+        const state = crypto.randomBytes(32).toString("base64url"),
+          pkce = createPkce();
+        const location = await createAuthorizationRequest(
+          state,
+          pkce.challenge,
+        );
+        db.prepare("DELETE FROM attempts WHERE expires<?").run(Date.now());
+        db.prepare("INSERT INTO attempts VALUES(?,?,?)").run(
+          hash(state),
+          seal(pkce.verifier),
+          Date.now() + 600000,
+        );
+        res.cookie("dropit.state", state, { ...options(), maxAge: 600000 });
+        res.redirect(location.toString());
+      } catch {
+        res
+          .status(503)
+          .send(
+            "Connexion Kyros v4 indisponible. Vérifiez la configuration et réessayez.",
+          );
       }
     },
-
+    async callback(req, res) {
+      try {
+        const { state, code, iss } = req.query;
+        const cookie = req.cookies["dropit.state"];
+        if (
+          typeof state !== "string" ||
+          typeof cookie !== "string" ||
+          state.length !== cookie.length ||
+          !crypto.timingSafeEqual(Buffer.from(state), Buffer.from(cookie)) ||
+          typeof code !== "string" ||
+          iss !== getKyrosConfig().issuer
+        )
+          return res.status(400).send("Retour Kyros invalide.");
+        res.clearCookie("dropit.state", options());
+        const attempt = db
+          .prepare("DELETE FROM attempts WHERE id=? AND expires>? RETURNING *")
+          .get(hash(state), Date.now());
+        if (!attempt) return res.status(400).send("Tentative expirée.");
+        const tokens = await exchangeAuthorizationCode(
+            code,
+            unseal(attempt.verifier),
+          ),
+          claims = await verifyKyrosToken(tokens.access_token);
+        const user = {
+          sub: claims.sub,
+          id: claims.sub,
+          name: claims.name || claims.username || "Membre LUMA",
+          email: claims.email || null,
+        };
+        const sid = createSession(user, { tokens, claims });
+        res.cookie(cookieName(), sid, {
+          ...options(),
+          maxAge: Math.max(
+            0,
+            new Date(tokens.refresh_token_expires_at).getTime() - Date.now(),
+          ),
+        });
+        const resume = req.cookies.dropit_integration_return;
+        res.clearCookie("dropit_integration_return");
+        res.redirect(
+          typeof resume === "string" &&
+            resume.startsWith("/integrations/authorize?") &&
+            resume.length < 3000
+            ? resume
+            : "/",
+        );
+      } catch {
+        res
+          .status(401)
+          .send(
+            "La connexion Kyros a échoué. Recommencez depuis la page de connexion.",
+          );
+      }
+    },
     async logout(req, res) {
-      await destroySession(req.sid);
-      res.clearCookie(cookieName());
-      res.redirect("/");
+      await destroySession(req.cookies[cookieName()]);
+      res.clearCookie(cookieName(), options());
+      res.redirect("/login");
     },
   };
 }
-
-const fakeUser = {
-  sub: "dev-user",
-  id: "dev-user",
-  name: "Utilisateur de dev",
-  email: "dev@localhost",
-};
-
-export function requireAuth(handlers) {
-  return (req, res, next) => {
-    // En développement sans SSO configuré, on accepte un utilisateur fictif.
-    if (config.env === "development" && !(config.kyros.clientId && config.kyros.jwtSecret)) {
-      req.sid = "dev";
-      req.user = fakeUser;
-      return next();
-    }
-    const session = getSession(req.cookies[cookieName()]);
-    if (!session) {
-      if (req.originalUrl.startsWith("/api/")) {
-        return res.status(401).json({ error: "non_authentifie" });
+export function requireAuth() {
+  return async (req, res, next) => {
+    try {
+      const raw = req.cookies[cookieName()];
+      const session = typeof raw === "string" ? await refresh(raw) : null;
+      if (!session) {
+        if (req.originalUrl.startsWith("/api/"))
+          return res.status(401).json({ error: "non_authentifie" });
+        return res.redirect("/login");
       }
-      // Sas de connexion : on ne jette pas l'utilisateur vers Kyros sans qu'il ait vu la porte.
-      return res.redirect("/login");
+      res.cookie(cookieName(), raw, {
+        ...options(),
+        maxAge: Math.max(0, session.expiresAt - Date.now()),
+      });
+      req.sid = session.sid;
+      req.user = session.user;
+      next();
+    } catch (e) {
+      next(e);
     }
-    req.sid = session.sid;
-    req.user = session.user;
-    next();
   };
 }

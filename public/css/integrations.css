@@ -1,0 +1,99 @@
+/* public/css/integrations.css */
+:root {
+  color-scheme: dark;
+  --bg: #161615;
+  --panel: #20201e;
+  --text: #f2eee5;
+  --muted: #bab5ab;
+  --accent: #ff8e54;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font:
+    16px/1.6 system-ui,
+    sans-serif;
+}
+main {
+  max-width: 780px;
+  margin: auto;
+  padding: 40px 24px;
+}
+h1 {
+  font-size: 30px;
+  line-height: 1.2;
+}
+h2 {
+  font-size: 22px;
+  margin-top: 36px;
+}
+p {
+  max-width: 65ch;
+}
+a {
+  color: var(--accent);
+  text-underline-offset: 4px;
+}
+label {
+  display: grid;
+  gap: 6px;
+  margin: 18px 0;
+}
+input {
+  width: 100%;
+  background: var(--panel);
+  color: var(--text);
+  padding: 12px;
+  border: 1px solid #625e56;
+  border-radius: 6px;
+  font: inherit;
+}
+button {
+  background: var(--accent);
+  color: #25160f;
+  font: inherit;
+  font-weight: 650;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid #514d45;
+}
+article p {
+  overflow-wrap: anywhere;
+}
+button:focus-visible,
+input:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+#status {
+  color: var(--accent);
+}
+@media (max-width: 500px) {
+  main {
+    padding: 24px 18px;
+  }
+  h1 {
+    font-size: 26px;
+  }
+  article {
+    flex-wrap: wrap;
+  }
+}

@@ -1,3 +1,5 @@
+> Archive du protocole historique, antérieur à DropIt 1.1.0. Ne pas utiliser pour une nouvelle configuration : voir [migration Kyros v4](RELEASE_1.1.0.md). Le code utilise désormais RS256/JWKS, PAR/PKCE et des sessions persistantes.
+
 # Utiliser Kyros 4.2.0 — SSO, login direct et mode hybride
 
 Ce guide décrit l’intégration d’un module quelconque à Kyros. Les exemples utilisent `https://kyros.example.fr` et `https://module.example.fr` : remplace-les par tes domaines.

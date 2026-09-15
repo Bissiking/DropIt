@@ -1,4 +1,4 @@
-# DropIt
+# DropIt · 1.1.0
 
 Transfert de fichiers lourds (jusqu'à 40 Go par fichier) pour les équipes, relié au SSO Kyros. Version allégée de type WeTransfer, avec upload resumable par chunks, liens courts, durée de vie choisissable et rétention de 24 h après suppression.
 
@@ -6,13 +6,13 @@ Transfert de fichiers lourds (jusqu'à 40 Go par fichier) pour les équipes, rel
 
 ```bash
 npm install
-cp .env.example .env   # renseigner le SSO Kyros, sinon dev sans SSO
+cp .env.example .env   # renseigner le SSO Kyros, Kyros v4 obligatoire
 npm run dev            # ou npm start
 ```
 
 Puis ouvrir `http://localhost:3000`.
 
-En développement, sans `KYROS_CLIENT_ID` configuré, l'authentification est neutralisée (utilisateur fictif). Dès qu'un `.env` est complet, le mode SSO s'active.
+Node ≥22.13 requis. Kyros v4 est obligatoire, y compris en développement. Voir [migration 1.1.0](DOCS/RELEASE_1.1.0.md) pour adapter une ancienne inscription. Les sessions sont maintenant persistantes et renouvelées automatiquement.
 
 ## Fonctionnalités
 
@@ -22,14 +22,16 @@ En développement, sans `KYROS_CLIENT_ID` configuré, l'authentification est neu
 - **Statuts dérivés du temps** : `en cours`, `bientôt expiré`, `expiré`, `supprimé (récupérable)`, `purgé`.
 - **Rétention 24 h** : après suppression, le partage reste récupérable 24 h, puis fichiers détruits et entrée purgée.
 - **Métadonnées** : taille, type MIME, nombre de fichiers, empreinte SHA-256, dates.
-- **SSO hybride Kyros** : tout est derrière le SSO SAUF les pages/liens de téléchargement publics (`/d/:slug`, `/dl/:slug/:fileId`).
+- **SSO Kyros v4** : tout est derrière le SSO SAUF les pages/liens de téléchargement publics (`/d/:slug`, `/dl/:slug/:fileId`).
 - **Nettoyage automatique** : partages expirés, uploads abandonnés, fichiers orphelins.
 
 ## SSO Kyros
 
-Intégration complète décrite dans `docs/sso-guide.md`. Le module suit le flux `authorize → callback → token exchange` avec vérification locale du JWT (HS256, iss, aud, `resource_aud`, exp). Les tokens ne sont jamais envoyés au navigateur : seule une session HttpOnly signée est conservée côté client.
+Flux v4 PAR/PKCE, contrôle state/issuer, signature RS256/JWKS et audiences. Sessions opaques HttpOnly en SQLite, jetons chiffrés, refresh sérialisé. Sauvegarder `data/auth-master.key` avec les bases SQLite et les fichiers. Configuration initiale : `.env.example`. Une instance Node par stockage.
 
-Variables d'environnement : préfixe `KYROS_*` (voir `.env.example`).
+## Applications connectées
+
+Dans `/integrations`, créez la clé d’application pour Liora et gérez vos autorisations personnelles. Clé applicative + consentement individuel sont nécessaires ; un ID utilisateur seul n’accorde aucun accès. [Contrat API déléguée](DOCS/LIORA_API.md).
 
 ## API
 
@@ -52,7 +54,7 @@ Variables d'environnement : préfixe `KYROS_*` (voir `.env.example`).
 server.js          Écoute, monte routes et maintenance
 src/config.js      Configuration (.env)
 src/store.js       Persistance JSON atomique (partages)
-src/auth.js        SSO Kyros (session mémoire + JWT local)
+src/auth.js        SSO Kyros v4 (session SQLite chiffrée)
 src/uploads.js     Upload resumable par chunks
 src/shares.js      Cycle de vie partages + statuts + slug
 src/download.js    API publique de téléchargement
