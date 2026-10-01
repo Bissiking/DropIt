@@ -23,26 +23,33 @@ export function getKyrosConfig() {
   }
   return {
     baseUrl,
-    issuer: process.env.KYROS_ISSUER || baseUrl,
+    issuer: dropitConfig.kyros.issuer || "kyros",
     clientId,
     clientSecret: dropitConfig.kyros.clientSecret,
-    audience: process.env.KYROS_AUDIENCE ?? "kyros-modules",
-    resourceAudience: process.env.KYROS_RESOURCE_AUDIENCE ?? "kyros:dropit",
+    audience: dropitConfig.kyros.audience || "kyros-modules",
+    resourceAudience: dropitConfig.kyros.resourceAudience || "kyros:sso:dropit",
     scopes: Array.from(
-      new Set((dropitConfig.kyros.scope + " offline_access").split(/\s+/)),
+      new Set(String(dropitConfig.kyros.scope || "profile email").split(/\s+/).filter(Boolean)),
     ).join(" "),
+    requiredScopes: Array.from(
+      new Set(String(dropitConfig.kyros.requiredScopes || "profile email").split(/\s+/).filter(Boolean)),
+    ).join(" "),
+    authorizeUrl: dropitConfig.kyros.authorizeUrl || `${baseUrl}/authorize`,
+    tokenUrl: dropitConfig.kyros.tokenUrl || `${baseUrl}/token`,
+    parUrl: dropitConfig.kyros.parUrl || `${baseUrl}/par`,
+    jwksUrl: dropitConfig.kyros.jwksUrl || `${baseUrl}/sso/v4/jwks`,
     redirectUri: `${appUrl}/auth/callback`,
   };
 }
 function handshake() {
   return {
-    kyros_sso_version: "v4",
-    kyros_edition: "standard",
-    kyros_application_scope: "standard",
+    kyros_sso_version: dropitConfig.kyros.ssoVersion,
+    kyros_edition: dropitConfig.kyros.edition,
+    kyros_application_scope: dropitConfig.kyros.applicationScope,
   };
 }
 function requestSignal() {
-  const configured = Number(process.env.KYROS_TIMEOUT_SECONDS ?? 5);
+  const configured = Number(dropitConfig.kyros.timeoutSeconds ?? 5);
   const seconds =
     Number.isFinite(configured) && configured > 0 ? configured : 5;
   return AbortSignal.timeout(seconds * 1000);
@@ -54,7 +61,7 @@ export function createPkce() {
 }
 export async function createAuthorizationRequest(state, challenge) {
   const config = getKyrosConfig();
-  const response = await fetch(`${config.baseUrl}/par`, {
+  const response = await fetch(config.parUrl, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
@@ -78,7 +85,7 @@ export async function createAuthorizationRequest(state, challenge) {
         "Kyros a refusé la requête PAR.",
     );
   }
-  const authorize = new URL(`${config.baseUrl}/authorize`);
+  const authorize = new URL(config.authorizeUrl);
   authorize.searchParams.set("client_id", config.clientId);
   authorize.searchParams.set("request_uri", payload.request_uri);
   return authorize;
@@ -116,7 +123,7 @@ async function requestTokens(body) {
   const config = getKyrosConfig();
   let response;
   try {
-    response = await fetch(`${config.baseUrl}/token`, {
+    response = await fetch(config.tokenUrl, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
@@ -202,7 +209,7 @@ export async function revokeKyrosToken(refreshToken) {
 const keysets = new Map();
 export async function verifyKyrosToken(token) {
   const config = getKyrosConfig();
-  const jwksUrl = `${config.baseUrl}/sso/v4/jwks`;
+  const jwksUrl = config.jwksUrl;
   let jwks = keysets.get(jwksUrl);
   if (!jwks) {
     jwks = createRemoteJWKSet(new URL(jwksUrl));
@@ -222,7 +229,7 @@ export async function verifyKyrosToken(token) {
   const checks = {
     subject: typeof payload.sub === "string" && !!payload.sub,
     expiry: typeof payload.exp === "number",
-    scopes: config.scopes
+    scopes: config.requiredScopes
       .split(" ")
       .filter(Boolean)
       .every((scope) =>
