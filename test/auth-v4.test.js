@@ -20,7 +20,11 @@ test("Kyros v4 PAR/PKCE, persistent encrypted sessions, serialized refresh, outa
     KYROS_ISSUER: "http://127.0.0.1:14337",
     KYROS_RESOURCE_AUDIENCE: "kyros:liora",
     KYROS_AUDIENCE: "kyros-modules",
-    KYROS_SCOPES: "profile email offline_access",
+    KYROS_REQUESTED_SCOPE: "profile email",
+    KYROS_REQUIRED_SCOPES: "profile email",
+    KYROS_PAR_URL: "http://127.0.0.1:14337/par",
+    KYROS_TOKEN_URL: "http://127.0.0.1:14337/token",
+    KYROS_JWKS_URL: "http://127.0.0.1:14337/sso/v4/jwks",
   });
   const provider = await fakeKyros(14337, origin);
   provider.setExpiry(90);
