@@ -149,11 +149,16 @@ export function makeAuthHandlers() {
         );
         res.cookie("dropit.state", state, { ...options(), maxAge: 600000 });
         res.redirect(location.toString());
-      } catch {
+      } catch (error) {
+        console.error("[DropIt][Kyros] Échec du démarrage SSO v4:", {
+          name: error?.name,
+          code: error?.code,
+          message: error?.message,
+        });
         res
           .status(503)
           .send(
-            "Connexion Kyros v4 indisponible. Vérifiez la configuration et réessayez.",
+            `Connexion Kyros v4 indisponible : ${error?.message || "erreur inconnue"}`,
           );
       }
     },
@@ -203,11 +208,16 @@ export function makeAuthHandlers() {
             ? resume
             : "/",
         );
-      } catch {
+      } catch (error) {
+        console.error("[DropIt][Kyros] Échec du callback SSO v4:", {
+          name: error?.name,
+          code: error?.code,
+          message: error?.message,
+        });
         res
           .status(401)
           .send(
-            "La connexion Kyros a échoué. Recommencez depuis la page de connexion.",
+            `La connexion Kyros a échoué : ${error?.message || "erreur inconnue"}`,
           );
       }
     },
