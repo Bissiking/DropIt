@@ -31,10 +31,15 @@ export const config = {
     graceExpiryMs: 6 * 60 * 60 * 1000, // purge 6 h après expiration
   },
   kyros: {
-    provider: process.env.KYROS_AUTH_PROVIDER || "kyros",
+    provider: process.env.AUTH_PROVIDER || process.env.KYROS_AUTH_PROVIDER || "kyros",
+    ssoVersion: process.env.KYROS_SSO_VERSION || "v4",
+    edition: process.env.KYROS_EDITION || "standard",
+    applicationScope: process.env.KYROS_APPLICATION_SCOPE || "standard",
     baseUrl: process.env.KYROS_BASE_URL || process.env.DROPIT_KYROS_BASE_URL || "",
     authorizeUrl: process.env.KYROS_AUTHORIZE_URL || process.env.DROPIT_KYROS_AUTHORIZE_URL || "",
     tokenUrl: process.env.KYROS_TOKEN_URL || process.env.DROPIT_KYROS_TOKEN_URL || "",
+    parUrl: process.env.KYROS_PAR_URL || "",
+    jwksUrl: process.env.KYROS_JWKS_URL || "",
     clientId: process.env.KYROS_CLIENT_ID || process.env.DROPIT_KYROS_CLIENT_ID || "",
     clientSecret: process.env.KYROS_CLIENT_SECRET || process.env.DROPIT_KYROS_CLIENT_SECRET || "",
     jwtSecret: process.env.KYROS_JWT_SECRET || process.env.DROPIT_KYROS_JWT_SECRET || "",
@@ -42,5 +47,7 @@ export const config = {
     audience: process.env.KYROS_AUDIENCE || process.env.DROPIT_KYROS_AUDIENCE || "kyros-modules",
     resourceAudience: process.env.KYROS_RESOURCE_AUDIENCE || process.env.DROPIT_KYROS_RESOURCE_AUDIENCE || "",
     scope: process.env.KYROS_REQUESTED_SCOPE || process.env.DROPIT_KYROS_REQUESTED_SCOPE || "profile email",
+    requiredScopes: process.env.KYROS_REQUIRED_SCOPES || "profile email",
+    timeoutSeconds: Number(process.env.KYROS_TIMEOUT_SECONDS || 5),
   },
 };
